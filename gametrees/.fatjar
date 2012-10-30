@@ -1,10 +1,10 @@
 #Fat Jar Configuration File
-#Fri Oct 26 16:15:11 CEST 2012
+#Tue Oct 30 11:55:54 CET 2012
 onejar.license.required=true
 manifest.classpath=
 manifest.removesigners=true
 onejar.checkbox=false
-jarname=../game/gamegui/plugins/gametrees.jar
+jarname=../../game/gamegui/plugins/gametrees.jar
 manifest.mergeall=true
 manifest.mainclass=
 manifest.file=<createnew>
