@@ -157,6 +157,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 			Map<String, Double> lesserCount = new HashMap<>();
 			Map<String, Double> greaterCount = countPerLabel(values);
 			double information = information(greaterCount);
+			double threshold = Double.NaN;
 			
 			FeatureValue prev = values.get(0);
 			int count = 1;
@@ -171,10 +172,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 					if (prev.value < curr.value) {
 						double gain = information + gain(lesserCount, greaterCount);
 						if (gain > ret.gain) {
-							SingleThreshold c = new SingleThreshold();
-							c.featureIndex = feature;
-							c.threshold = (prev.value + curr.value)/2;
-							ret.criterion = c;
+							threshold = (prev.value + curr.value)/2;
 							ret.gain = gain;
 						}
 					}
@@ -184,6 +182,12 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 				prev = curr;
 			}
 			
+			if (!Double.isNaN(threshold)) {
+				SingleThreshold c = new SingleThreshold();
+				c.threshold = threshold;
+				c.featureIndex = feature;
+				ret.criterion = c;
+			}
 			return ret;
 		}
 	}
