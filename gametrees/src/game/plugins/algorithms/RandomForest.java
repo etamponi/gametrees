@@ -14,6 +14,8 @@ import game.utils.Utils;
 
 public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 	
+	public boolean uniqueSelector = true;
+	
 	public double bootstrapPercent = 0.66;
 	
 	public int featuresPerNode = 0;
@@ -23,6 +25,8 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 	public FeatureSelector selector;
 	
 	public RandomForest() {
+		setOptionBinding("uniqueSelector", "selector.prepareOnce");
+		
 		setOptionChecks("bootstrapPercent", new RangeCheck(0.01, 1.0));
 		
 		setOptionChecks("featuresPerNode", new ErrorCheck<Integer>() {
@@ -44,14 +48,17 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 	public void setBlock(MetaEnsemble block) {
 		this.block = block;
 		block.setOption("outputEncoder", new OneHotEncoder());
+		block.setOption("combiner", new MajorityCombiner());
 	}
 
 	@Override
 	protected void train(Dataset dataset) {
-		block.setOption("combiner", new MajorityCombiner());
-		
 		int selectedFeatures = featuresPerNode == 0 ? (int)Utils.log2(block.getParent(0).getFeatureNumber()) + 1 : featuresPerNode;
-		updateStatus(0.1, "start growing forest of " + trees + " trees using " + selectedFeatures + " per node.");
+		updateStatus(0.1, "start growing forest of " + trees + " trees using " + selectedFeatures + " features per node.");
+		
+		if (uniqueSelector) {
+			selector.prepare(dataset, block.getParent(0));
+		}
 		
 		for(int i = 0; i < trees; i++) {
 			updateStatus(0.1 + 0.9*i/trees, "growing tree " + (i+1));

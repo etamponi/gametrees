@@ -18,6 +18,7 @@ import game.plugins.classifiers.criteria.SingleThreshold;
 import game.plugins.classifiers.selectors.RandomFeatureSelector;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -59,12 +60,12 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	@Override
 	protected void train(Dataset dataset) {
 		updateStatus(0.0, "preparing feature selector");
-		selector.prepare(dataset, block);
+		selector.prepare(dataset, block.getParent(0));
 		updateStatus(0.1, "feature selector prepared, start training");
-		recursiveTrain(dataset, block.root);
+		recursiveTrain(dataset, block.root, new int[block.getParent(0).getFeatureNumber()]);
 	}
 
-	private void recursiveTrain(Dataset dataset, Node node) {
+	private void recursiveTrain(Dataset dataset, Node node, int[] timesChoosen) {
 
 		if (dataset.size() <= minimumSamples) {
 			// This is a leaf
@@ -78,7 +79,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 			return;
 		}
 		
-		Criterion criterion = bestCriterion(dataset);
+		Criterion criterion = bestCriterion(dataset, timesChoosen);
 		if (criterion == null) {
 			// This is a leaf
 			node.setProbabilities(getProbabilities(dataset));
@@ -86,10 +87,12 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		}
 		
 		node.criterion = criterion;
+		timesChoosen = Arrays.copyOf(timesChoosen, timesChoosen.length);
+		timesChoosen[criterion.featureIndex]++;
 		for(Dataset split: split(dataset, criterion)) {
 			Node child = new Node();
 			node.children.add(child);
-			recursiveTrain(split, child);
+			recursiveTrain(split, child, timesChoosen);
 		}
 	}
 	
@@ -103,10 +106,10 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		}
 	}
 	
-	private Criterion bestCriterion(Dataset dataset) {
+	private Criterion bestCriterion(Dataset dataset, int[] timesChoosen) {
 		CriterionWithGain ret = new CriterionWithGain(null, 0);
 		
-		List<Integer> possibleFeatures = selector.select(featuresPerNode);
+		List<Integer> possibleFeatures = selector.select(featuresPerNode, timesChoosen);
 		
 		for(int feature: possibleFeatures) {
 			CriterionWithGain current = bestCriterionFor(feature, dataset);
