@@ -54,11 +54,13 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 	@Override
 	protected void train(Dataset dataset) {
 		int selectedFeatures = featuresPerNode == 0 ? (int)Utils.log2(block.getParent(0).getFeatureNumber()) + 1 : featuresPerNode;
-		updateStatus(0.1, "start growing forest of " + trees + " trees using " + selectedFeatures + " features per node.");
 		
 		if (uniqueSelector) {
+			updateStatus(0.01, "preparing feature selector");
 			selector.prepare(dataset, block.getParent(0));
 		}
+		
+		updateStatus(0.1, "start growing forest of " + trees + " trees using " + selectedFeatures + " features per node.");
 		
 		for(int i = 0; i < trees; i++) {
 			updateStatus(0.1 + 0.9*i/trees, "growing tree " + (i+1));
