@@ -38,6 +38,8 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	public FeatureSelector selector;
 	
 	public C45Like() {
+		setOptionBinding("block.parents.0", "selector.inputEncoder");
+		
 		setOption("selector", new RandomFeatureSelector());
 		
 		setOptionChecks("featuresPerNode", new ErrorCheck<Integer>() {
@@ -60,7 +62,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	@Override
 	protected void train(Dataset dataset) {
 		updateStatus(0.0, "preparing feature selector");
-		selector.prepare(dataset, block.getParent(0));
+		selector.prepare(dataset);
 		updateStatus(0.1, "feature selector prepared, start training");
 		recursiveTrain(dataset, block.root, new int[block.getParent(0).getFeatureNumber()]);
 	}
@@ -109,7 +111,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	private Criterion bestCriterion(Dataset dataset, int[] timesChoosen) {
 		CriterionWithGain ret = new CriterionWithGain(null, 0);
 		
-		List<Integer> possibleFeatures = selector.select(featuresPerNode, timesChoosen);
+		List<Integer> possibleFeatures = selector.select(featuresPerNode, timesChoosen, dataset);
 		
 		for(int feature: possibleFeatures) {
 			CriterionWithGain current = bestCriterionFor(feature, dataset);

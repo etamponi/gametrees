@@ -25,6 +25,7 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 	public FeatureSelector selector;
 	
 	public RandomForest() {
+		setOptionBinding("parents.0", "selector.inputEncoder");
 		setOptionBinding("uniqueSelector", "selector.prepareOnce");
 		
 		setOptionChecks("bootstrapPercent", new RangeCheck(0.01, 1.0));
@@ -57,7 +58,7 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 		
 		if (uniqueSelector) {
 			updateStatus(0.01, "preparing feature selector");
-			selector.prepare(dataset, block.getParent(0));
+			selector.prepare(dataset);
 		}
 		
 		updateStatus(0.1, "start growing forest of " + trees + " trees using " + selectedFeatures + " features per node.");
