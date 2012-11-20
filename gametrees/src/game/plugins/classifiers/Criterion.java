@@ -1,12 +1,14 @@
 package game.plugins.classifiers;
 
-import game.configuration.Configurable;
-
 import org.apache.commons.math3.linear.RealVector;
 
-public abstract class Criterion extends Configurable {
+public abstract class Criterion {
 	
-	public int featureIndex;
+	private int featureIndex;
+	
+	public Criterion(int featureIndex) {
+		this.featureIndex = featureIndex;
+	}
 	
 	public int decide(RealVector input) {
 		return decide(input.getEntry(featureIndex));

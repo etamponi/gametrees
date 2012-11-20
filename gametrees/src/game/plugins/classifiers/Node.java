@@ -1,31 +1,43 @@
 package game.plugins.classifiers;
 
-import game.configuration.Configurable;
-import game.configuration.ConfigurableList;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.commons.math3.linear.RealVector;
 
-public class Node extends Configurable {
+public class Node {
 	
 	private RealVector probability;
 	
-	public Criterion criterion;
+	private Criterion criterion;
 	
-	public ConfigurableList children = new ConfigurableList(this, Node.class);
+	private final List<Node> children = new ArrayList<>();
 	
 	public RealVector decide(RealVector input) {
 		if (children.isEmpty())
 			return probability;
 		else
-			return children.get(criterion.decide(input), Node.class).decide(input);
+			return children.get(criterion.decide(input)).decide(input);
 	}
 	
-	public void setProbabilities(RealVector p) {
+	public void setProbability(RealVector p) {
 		this.probability = p;
 	}
 	
 	public RealVector getProbability() {
 		return probability;
+	}
+	
+	public List<Node> getChildren() {
+		return children;
+	}
+
+	public Criterion getCriterion() {
+		return criterion;
+	}
+
+	public void setCriterion(Criterion criterion) {
+		this.criterion = criterion;
 	}
 
 }

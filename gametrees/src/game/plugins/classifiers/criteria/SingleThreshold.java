@@ -4,7 +4,12 @@ import game.plugins.classifiers.Criterion;
 
 public class SingleThreshold extends Criterion {
 	
-	public double threshold;
+	private double threshold;
+	
+	public SingleThreshold(int featureIndex, double threshold) {
+		super(featureIndex);
+		this.threshold = threshold;
+	}
 
 	@Override
 	public int decide(double feature) {

@@ -1,7 +1,5 @@
 package game.plugins.algorithms;
 
-import game.configuration.ErrorCheck;
-import game.configuration.errorchecks.RangeCheck;
 import game.core.Block;
 import game.core.Dataset;
 import game.core.TrainingAlgorithm;
@@ -12,9 +10,17 @@ import game.plugins.classifiers.MajorityCombiner;
 import game.plugins.encoders.OneHotEncoder;
 import game.utils.Utils;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.ios.ErrorCheck;
+import com.ios.Property;
+import com.ios.errorchecks.RangeCheck;
+import com.ios.listeners.ExactPathListener;
+import com.ios.triggers.MasterSlaveTrigger;
+import com.ios.triggers.SimpleTrigger;
+
 public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
-	
-	public boolean uniqueSelector = true;
 	
 	public double bootstrapPercent = 0.66;
 	
@@ -25,18 +31,27 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 	public FeatureSelector selector;
 	
 	public RandomForest() {
-		setOptionBinding("parents.0", "selector.inputEncoder");
-		setOptionBinding("uniqueSelector", "selector.prepareOnce");
+		addErrorCheck("bootstrapPercent", new RangeCheck(0.01, 1.0));
 		
-		setOptionChecks("bootstrapPercent", new RangeCheck(0.01, 1.0));
-		
-		setOptionChecks("featuresPerNode", new ErrorCheck<Integer>() {
+		addErrorCheck("featuresPerNode", new ErrorCheck<Integer>() {
+			public RandomForest wrapper = RandomForest.this;
 			@Override public String getError(Integer value) {
-				if (block != null && block.getParent(0) != null) {
-					if (value > block.getParent(0).getFeatureNumber())
+				if (wrapper.block != null && wrapper.block.getParent(0) != null) {
+					if (value > wrapper.block.getParent(0).getFeatureNumber())
 						return "cannot be greater than input feature number (" + block.getParent(0).getFeatureNumber() + ")";
 				}
 				return null;
+			}
+		});
+		
+		addTrigger(new MasterSlaveTrigger(this, "block.parents.0", "selector.inputEncoder"));
+		
+		addTrigger(new SimpleTrigger(new ExactPathListener(new Property(this, "block"))) {
+			@Override
+			public void action(Property changedPath) {
+				Block block = changedPath.getContent();
+				block.setContent("outputEncoder", new OneHotEncoder());
+				block.setContent("combiner", new MajorityCombiner());
 			}
 		});
 	}
@@ -45,40 +60,34 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 	public boolean isCompatible(Block block) {
 		return block instanceof MetaEnsemble;
 	}
-	
-	public void setBlock(MetaEnsemble block) {
-		this.block = block;
-		block.setOption("outputEncoder", new OneHotEncoder());
-		block.setOption("combiner", new MajorityCombiner());
-	}
 
 	@Override
 	protected void train(Dataset dataset) {
 		int selectedFeatures = featuresPerNode == 0 ? (int)Utils.log2(block.getParent(0).getFeatureNumber()) + 1 : featuresPerNode;
 		
-		if (uniqueSelector) {
-			updateStatus(0.01, "preparing feature selector");
-			selector.prepare(dataset);
-		}
-		
 		updateStatus(0.1, "start growing forest of " + trees + " trees using " + selectedFeatures + " features per node.");
 		
 		for(int i = 0; i < trees; i++) {
+			System.out.println("Tree " + (i+1));
 			updateStatus(0.1 + 0.9*i/trees, "growing tree " + (i+1));
 			DecisionTree tree = new DecisionTree();
-			tree.setOption("template", block.template);
-			tree.setOption("trainingAlgorithm", new C45Like());
+			tree.setContent("template", block.template);
+			tree.setContent("trainingAlgorithm", new C45Like());
 			tree.parents.add(block.getParent(0));
-			tree.trainingAlgorithm.setOption("featuresPerNode", selectedFeatures);
-			tree.trainingAlgorithm.setOption("selector", selector);
+			tree.trainingAlgorithm.setContent("featuresPerNode", selectedFeatures);
+			tree.trainingAlgorithm.setContent("selector", selector);
 			executeAnotherTaskAndWait(0.1+0.9*(i+1)/trees, tree.trainingAlgorithm, dataset.getRandomSubset(bootstrapPercent)); // FIXME Bootstrap sample
 			block.combiner.parents.add(tree);
 		}
 	}
 
-	private static final String[] managed = {"combiner", "outputEncoder"};
+	private static final List<String> managed = new ArrayList<>();
+	static {
+		managed.add("combiner");
+		managed.add("outputEncoder");
+	}
 	@Override
-	public String[] getManagedBlockOptions() {
+	public List<String> getManagedProperties() {
 		return managed;
 	}
 

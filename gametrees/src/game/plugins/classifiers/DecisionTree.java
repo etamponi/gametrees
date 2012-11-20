@@ -6,14 +6,15 @@ import game.core.blocks.Classifier;
 import game.plugins.datatemplates.LabelTemplate;
 import game.plugins.encoders.OneHotEncoder;
 
+import com.ios.triggers.BoundProperties;
+
 public class DecisionTree extends Classifier {
 	
-	public Node root = new Node();
+	public Node root;
 	
 	public DecisionTree() {
-		setOption("outputEncoder", new OneHotEncoder());
-		
-		setAsInternalOptions("outputEncoder");
+		setContent("outputEncoder", new OneHotEncoder());
+		addTrigger(new BoundProperties(this, "outputEncoder"));
 	}
 
 	@Override

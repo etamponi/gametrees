@@ -7,23 +7,29 @@ import game.utils.Utils;
 import java.util.Collections;
 import java.util.List;
 
+import com.ios.Property;
+import com.ios.listeners.SubPathListener;
+import com.ios.triggers.SimpleTrigger;
+
 public class RandomFeatureSelector extends FeatureSelector {
 	
 	private List<Integer> range;
-
-	@Override
-	public void prepare(Dataset dataset) {
-		range = Utils.range(0, inputEncoder.getFeatureNumber());
+	
+	public RandomFeatureSelector() {
+		addTrigger(new SimpleTrigger(new SubPathListener(new Property(this, "inputEncoder"))) {
+			private RandomFeatureSelector selector = RandomFeatureSelector.this;
+			@Override
+			public void action(Property changedPath) {
+				if (selector.inputEncoder != null)
+					selector.range = Utils.range(0, selector.inputEncoder.getFeatureNumber());
+			}
+		});
 	}
 
 	@Override
-	public List<Integer> select(int n, int[] timesChoosen, Dataset dataset) {
-		if (n > 0) {
-			Collections.shuffle(range);
-			return range.subList(0, n);
-		} else {
-			return range;
-		}
+	public List<Integer> select(int n, Dataset dataset) {
+		Collections.shuffle(range);
+		return range.subList(0, n);
 	}
 
 }

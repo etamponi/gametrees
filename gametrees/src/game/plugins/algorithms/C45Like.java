@@ -1,10 +1,8 @@
 package game.plugins.algorithms;
 
-import game.configuration.ErrorCheck;
 import game.core.Block;
 import game.core.Block.FeatureType;
 import game.core.Dataset;
-import game.core.Dataset.InstanceIterator;
 import game.core.Dataset.SampleIterator;
 import game.core.Instance;
 import game.core.Sample;
@@ -16,16 +14,20 @@ import game.plugins.classifiers.Node;
 import game.plugins.classifiers.criteria.Partition;
 import game.plugins.classifiers.criteria.SingleThreshold;
 import game.plugins.classifiers.selectors.RandomFeatureSelector;
+import game.utils.Utils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
+
+import com.ios.ErrorCheck;
+import com.ios.triggers.MasterSlaveTrigger;
 
 public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	
@@ -38,14 +40,15 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	public FeatureSelector selector;
 	
 	public C45Like() {
-		setOptionBinding("block.parents.0", "selector.inputEncoder");
+		addTrigger(new MasterSlaveTrigger(this, "block.parents.0", "selector.inputEncoder"));
 		
-		setOption("selector", new RandomFeatureSelector());
+		setContent("selector", new RandomFeatureSelector());
 		
-		setOptionChecks("featuresPerNode", new ErrorCheck<Integer>() {
+		addErrorCheck("featuresPerNode", new ErrorCheck<Integer>() {
+			private C45Like algorithm = C45Like.this;
 			@Override public String getError(Integer value) {
-				if (block.getParent(0) != null) {
-					if (value > block.getParent(0).getFeatureNumber())
+				if (algorithm.block.getParent(0) != null) {
+					if (value > algorithm.block.getParent(0).getFeatureNumber())
 						return "cannot be greater than input feature number (" + block.getParent(0).getFeatureNumber() + ")";
 				}
 				return null;
@@ -56,45 +59,46 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	@Override
 	public boolean isCompatible(Block block) {
 		return block instanceof DecisionTree
-				&& block.getOption("template.inputTemplate.sequence", boolean.class) == false;
+				&& block.getContent("template.inputTemplate.sequence", boolean.class) == false;
 	}
 
+	private int nodes;
 	@Override
 	protected void train(Dataset dataset) {
-		updateStatus(0.0, "preparing feature selector");
-		selector.prepare(dataset);
-		updateStatus(0.1, "feature selector prepared, start training");
-		recursiveTrain(dataset, block.root, new int[block.getParent(0).getFeatureNumber()]);
+		Node root = new Node();
+		
+		nodes = 1;
+		recursiveTrain(dataset, root);
+		
+		block.setContent("root", root);
 	}
 
-	private void recursiveTrain(Dataset dataset, Node node, int[] timesChoosen) {
-
+	private void recursiveTrain(Dataset dataset, Node node) {
+		System.out.println("Node " + nodes++);
 		if (dataset.size() <= minimumSamples) {
 			// This is a leaf
-			node.setProbabilities(getProbabilities(dataset));
+			node.setProbability(getProbabilities(dataset));
 			return;
 		}
 		
 		if (information(dataset) == 0) {
 			// This is a leaf
-			node.setProbabilities(getProbabilities(dataset));
+			node.setProbability(getProbabilities(dataset));
 			return;
 		}
 		
-		Criterion criterion = bestCriterion(dataset, timesChoosen);
+		Criterion criterion = bestCriterion(dataset);
 		if (criterion == null) {
 			// This is a leaf
-			node.setProbabilities(getProbabilities(dataset));
+			node.setProbability(getProbabilities(dataset));
 			return;
 		}
 		
-		node.criterion = criterion;
-		timesChoosen = Arrays.copyOf(timesChoosen, timesChoosen.length);
-		timesChoosen[criterion.featureIndex]++;
+		node.setCriterion(criterion);
 		for(Dataset split: split(dataset, criterion)) {
 			Node child = new Node();
-			node.children.add(child);
-			recursiveTrain(split, child, timesChoosen);
+			node.getChildren().add(child);
+			recursiveTrain(split, child);
 		}
 	}
 	
@@ -108,10 +112,12 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		}
 	}
 	
-	private Criterion bestCriterion(Dataset dataset, int[] timesChoosen) {
+	private Criterion bestCriterion(Dataset dataset) {
 		CriterionWithGain ret = new CriterionWithGain(null, 0);
 		
-		List<Integer> possibleFeatures = selector.select(featuresPerNode, timesChoosen, dataset);
+		List<Integer> range = Utils.range(0, block.getParent().getFeatureNumber());
+		
+		List<Integer> possibleFeatures = featuresPerNode == 0 ? range : selector.select(featuresPerNode, dataset);
 		
 		for(int feature: possibleFeatures) {
 			CriterionWithGain current = bestCriterionFor(feature, dataset);
@@ -137,12 +143,11 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		}
 	}
 	
-	private CriterionWithGain bestCriterionFor(int feature, Dataset dataset) {
+	private CriterionWithGain bestCriterionFor(int featureIndex, Dataset dataset) {
 		
-		if (block.getParent(0).getFeatureType(feature) == FeatureType.NOMINAL && binarySplitNominal == false) {
+		if (block.getParent(0).getFeatureType(featureIndex) == FeatureType.NOMINAL && binarySplitNominal == false) {
 			
-			Partition criterion = new Partition();
-			criterion.featureIndex = feature;
+			Partition criterion = new Partition(featureIndex);
 			double gain = gain(split(dataset, criterion));
 			
 			return new CriterionWithGain(criterion, gain);
@@ -152,10 +157,10 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 			CriterionWithGain ret = new CriterionWithGain(null, 0);
 			
 			List<FeatureValue> values = new ArrayList<>(dataset.size());
-			SampleIterator it = dataset.encodedSampleIterator(block.getParent(0), block.outputEncoder, false);
+			SampleIterator it = dataset.encodedSampleIterator(block.getParent(), block.outputEncoder, false);
 			while(it.hasNext()) {
 				Sample sample = it.next();
-				values.add(new FeatureValue(sample.getEncodedInput().getEntry(feature), (String)sample.getOutput()));
+				values.add(new FeatureValue(sample.getEncodedInput().getEntry(featureIndex), (String)sample.getOutput()));
 			}
 			Collections.sort(values);
 			
@@ -188,9 +193,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 			}
 			
 			if (!Double.isNaN(threshold)) {
-				SingleThreshold c = new SingleThreshold();
-				c.threshold = threshold;
-				c.featureIndex = feature;
+				SingleThreshold c = new SingleThreshold(featureIndex, threshold);
 				ret.criterion = c;
 			}
 			return ret;
@@ -263,26 +266,23 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	}
 
 	private List<Dataset> split(Dataset dataset, Criterion criterion) {
-		List<List<Integer>> indices = new ArrayList<>();
-		indices.add(new ArrayList<Integer>());
-		indices.add(new ArrayList<Integer>());
+		List<Dataset> splits = new ArrayList<>();
+		splits.add(new Dataset(block.template));
+		splits.add(new Dataset(block.template));
 		
-		InstanceIterator it = dataset.instanceIterator();
+		Iterator<Instance> it = dataset.iterator();
 		while(it.hasNext()) {
-			int split = criterion.decide(block.getParent(0).transform(it.next().getInput()).getElement(0));
-			indices.get(split).add(it.getCurrentIndex());
+			Instance instance = it.next();
+			int split = criterion.decide(block.getParent().transform(instance.getInput()).getElement(0));
+			splits.get(split).add(instance);
 		}
 		
-		List<Dataset> ret = new ArrayList<>(2);
-		ret.add(new Dataset(dataset, indices.get(0)));
-		ret.add(new Dataset(dataset, indices.get(1)));
-		
-		return ret;
+		return splits;
 	}
 
 	private RealVector getProbabilities(Dataset dataset) {
 		Map<String, Double> prob = new HashMap<>();
-		InstanceIterator it = dataset.instanceIterator();
+		Iterator<Instance> it = dataset.iterator();
 		double sum = 0;
 		while(it.hasNext()) {
 			Instance i = it.next();
@@ -293,7 +293,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 			sum++;
 		}
 		
-		List<String> labels = block.template.outputTemplate.getOption("labels");
+		List<String> labels = block.template.outputTemplate.getContent("labels");
 		
 		RealVector ret = new ArrayRealVector(labels.size());
 		for(String key: prob.keySet()) {
@@ -303,9 +303,12 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		return ret;
 	}
 
-	static private final String[] managed = {"root"};
+	static private final List<String> managed = new ArrayList<>();
+	static {
+		managed.add("root");
+	}
 	@Override
-	public String[] getManagedBlockOptions() {
+	public List<String> getManagedProperties() {
 		return managed;
 	}
 
