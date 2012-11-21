@@ -10,9 +10,6 @@ import game.plugins.classifiers.MajorityCombiner;
 import game.plugins.encoders.OneHotEncoder;
 import game.utils.Utils;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.ios.ErrorCheck;
 import com.ios.Property;
 import com.ios.errorchecks.RangeCheck;
@@ -81,14 +78,9 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 		}
 	}
 
-	private static final List<String> managed = new ArrayList<>();
-	static {
-		managed.add("combiner");
-		managed.add("outputEncoder");
-	}
 	@Override
-	public List<String> getManagedProperties() {
-		return managed;
+	public String getManagedPropertyNames() {
+		return "combiner outputEncoder";
 	}
 
 }

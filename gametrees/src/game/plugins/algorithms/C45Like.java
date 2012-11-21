@@ -303,13 +303,9 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		return ret;
 	}
 
-	static private final List<String> managed = new ArrayList<>();
-	static {
-		managed.add("root");
-	}
 	@Override
-	public List<String> getManagedProperties() {
-		return managed;
+	protected String getManagedPropertyNames() {
+		return "root";
 	}
 
 }
