@@ -75,7 +75,6 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 		updateStatus(0.1, "start growing forest of " + trees + " trees using " + selectedFeatures + " features per node.");
 		
 		for(int i = 0; i < trees; i++) {
-			System.out.println("Tree " + (i+1));
 			updateStatus(0.1 + 0.9*i/trees, "growing tree " + (i+1));
 			DecisionTree tree = new DecisionTree();
 			tree.setContent("template", block.template);

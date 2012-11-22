@@ -72,19 +72,16 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 				&& block.getContent("template.inputTemplate.sequence", boolean.class) == false;
 	}
 
-	private int nodes;
 	@Override
 	protected void train(Dataset dataset) {
 		Node root = new Node();
 		
-		nodes = 1;
 		recursiveTrain(dataset, root);
 		
 		block.setContent("root", root);
 	}
 
 	private void recursiveTrain(Dataset dataset, Node node) {
-		System.out.println("Node " + nodes++);
 		if (dataset.size() <= minimumSamples) {
 			// This is a leaf
 			node.setProbability(getProbabilities(dataset));
