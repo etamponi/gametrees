@@ -68,8 +68,8 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	
 	@Override
 	public boolean isCompatible(Block block) {
-		return block instanceof DecisionTree
-				&& block.getContent("template.inputTemplate.sequence", boolean.class) == false;
+		return block instanceof DecisionTree;
+//				&& block.getContent("template.inputTemplate.sequence", boolean.class) == false;
 	}
 
 	@Override
