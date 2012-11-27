@@ -21,6 +21,7 @@ import game.plugins.classifiers.Criterion;
 import game.plugins.classifiers.DecisionTree;
 import game.plugins.classifiers.FeatureSelector;
 import game.plugins.classifiers.Node;
+import game.plugins.classifiers.SingleFeatureCriterion;
 import game.plugins.classifiers.criteria.Partition;
 import game.plugins.classifiers.criteria.SingleThreshold;
 import game.plugins.classifiers.selectors.RandomFeatureSelector;
@@ -81,7 +82,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		block.setContent("root", root);
 	}
 
-	private void recursiveTrain(Dataset dataset, Node node) {
+	public void recursiveTrain(Dataset dataset, Node node) {
 		if (dataset.size() <= minimumSamples) {
 			// This is a leaf
 			node.setProbability(getProbabilities(dataset));
@@ -94,7 +95,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 			return;
 		}
 		
-		Criterion criterion = bestCriterion(dataset);
+		SingleFeatureCriterion criterion = bestCriterion(dataset);
 		if (criterion == null) {
 			// This is a leaf
 			node.setProbability(getProbabilities(dataset));
@@ -110,16 +111,16 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	}
 	
 	private static class CriterionWithGain {
-		private Criterion criterion;
+		private SingleFeatureCriterion criterion;
 		private double gain;
 		
-		public CriterionWithGain(Criterion criterion, double gain) {
+		public CriterionWithGain(SingleFeatureCriterion criterion, double gain) {
 			this.criterion = criterion;
 			this.gain = gain;
 		}
 	}
 	
-	private Criterion bestCriterion(Dataset dataset) {
+	private SingleFeatureCriterion bestCriterion(Dataset dataset) {
 		CriterionWithGain ret = new CriterionWithGain(null, 0);
 		
 		List<Integer> range = Utils.range(0, block.getParent().getFeatureNumber());

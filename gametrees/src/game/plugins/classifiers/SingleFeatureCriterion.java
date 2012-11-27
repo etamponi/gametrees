@@ -8,19 +8,23 @@
  * Contributors:
  *     Emanuele Tamponi - initial API and implementation
  ******************************************************************************/
-package game.plugins.classifiers.criteria;
+package game.plugins.classifiers;
 
-import game.plugins.classifiers.SingleFeatureCriterion;
+import org.apache.commons.math3.linear.RealVector;
 
-public class Partition extends SingleFeatureCriterion {
+public abstract class SingleFeatureCriterion extends Criterion {
 	
-	public Partition(int featureIndex) {
-		super(featureIndex);
+	private int featureIndex;
+	
+	public SingleFeatureCriterion(int featureIndex) {
+		this.featureIndex = featureIndex;
 	}
 	
 	@Override
-	public int decide(double feature) {
-		return (int)feature;
+	public int decide(RealVector input) {
+		return decide(input.getEntry(featureIndex));
 	}
+
+	public abstract int decide(double feature);
 
 }

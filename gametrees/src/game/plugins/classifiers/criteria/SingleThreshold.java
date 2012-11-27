@@ -10,9 +10,9 @@
  ******************************************************************************/
 package game.plugins.classifiers.criteria;
 
-import game.plugins.classifiers.Criterion;
+import game.plugins.classifiers.SingleFeatureCriterion;
 
-public class SingleThreshold extends Criterion {
+public class SingleThreshold extends SingleFeatureCriterion {
 	
 	private double threshold;
 	
