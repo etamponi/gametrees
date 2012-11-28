@@ -21,7 +21,6 @@ import game.plugins.classifiers.Criterion;
 import game.plugins.classifiers.DecisionTree;
 import game.plugins.classifiers.FeatureSelector;
 import game.plugins.classifiers.Node;
-import game.plugins.classifiers.SingleFeatureCriterion;
 import game.plugins.classifiers.criteria.Partition;
 import game.plugins.classifiers.criteria.SingleThreshold;
 import game.plugins.classifiers.selectors.RandomFeatureSelector;
@@ -82,7 +81,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		block.setContent("root", root);
 	}
 
-	public void recursiveTrain(Dataset dataset, Node node) {
+	protected void recursiveTrain(Dataset dataset, Node node) {
 		if (dataset.size() <= minimumSamples) {
 			// This is a leaf
 			node.setProbability(getProbabilities(dataset));
@@ -95,7 +94,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 			return;
 		}
 		
-		SingleFeatureCriterion criterion = bestCriterion(dataset);
+		Criterion criterion = bestCriterion(dataset);
 		if (criterion == null) {
 			// This is a leaf
 			node.setProbability(getProbabilities(dataset));
@@ -110,17 +109,25 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		}
 	}
 	
-	private static class CriterionWithGain {
-		private SingleFeatureCriterion criterion;
+	protected static class CriterionWithGain {
+		private Criterion criterion;
 		private double gain;
 		
-		public CriterionWithGain(SingleFeatureCriterion criterion, double gain) {
+		public CriterionWithGain(Criterion criterion, double gain) {
 			this.criterion = criterion;
 			this.gain = gain;
 		}
+		
+		public Criterion getCriterion() {
+			return criterion;
+		}
+		
+		public double getGain() {
+			return gain;
+		}
 	}
 	
-	private SingleFeatureCriterion bestCriterion(Dataset dataset) {
+	protected Criterion bestCriterion(Dataset dataset) {
 		CriterionWithGain ret = new CriterionWithGain(null, 0);
 		
 		List<Integer> range = Utils.range(0, block.getParent().getFeatureNumber());
@@ -136,7 +143,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		return ret.criterion;
 	}
 	
-	private static class FeatureValue implements Comparable<FeatureValue> {
+	protected static class FeatureValue implements Comparable<FeatureValue> {
 		private double value;
 		private String label;
 		
@@ -151,7 +158,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		}
 	}
 	
-	private CriterionWithGain bestCriterionFor(int featureIndex, Dataset dataset) {
+	protected CriterionWithGain bestCriterionFor(int featureIndex, Dataset dataset) {
 		
 		if (block.getParent(0).getFeatureType(featureIndex) == FeatureType.NOMINAL && binarySplitNominal == false) {
 			
@@ -253,7 +260,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		return ret;
 	}
 
-	private double information(Dataset dataset) {
+	protected double information(Dataset dataset) {
 		RealVector prob = getProbabilities(dataset);
 		double info = 0;
 		for (double p: prob.toArray())
@@ -262,7 +269,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		return -info;
 	}
 	
-	private double gain(List<Dataset> splits) {
+	protected double gain(List<Dataset> splits) {
 		double ret = 0;
 		double total = 0;
 		for (Dataset dataset: splits) {
@@ -273,7 +280,7 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		return ret;
 	}
 
-	private List<Dataset> split(Dataset dataset, Criterion criterion) {
+	protected List<Dataset> split(Dataset dataset, Criterion criterion) {
 		List<Dataset> splits = new ArrayList<>();
 		splits.add(new Dataset(block.template));
 		splits.add(new Dataset(block.template));
