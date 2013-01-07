@@ -11,6 +11,7 @@
 package game.plugins.classifiers.selectors;
 
 import game.core.Dataset;
+import game.core.Experiment;
 import game.plugins.classifiers.FeatureSelector;
 import game.utils.Utils;
 
@@ -38,7 +39,7 @@ public class RandomFeatureSelector extends FeatureSelector {
 
 	@Override
 	public List<Integer> select(int n, Dataset dataset) {
-		Collections.shuffle(range);
+		Collections.shuffle(range, Experiment.getRandom());
 		return range.subList(0, n);
 	}
 
