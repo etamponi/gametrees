@@ -10,6 +10,8 @@
  ******************************************************************************/
 package game.plugins.classifiers;
 
+import game.core.Element;
+
 import org.apache.commons.math3.linear.RealVector;
 
 public abstract class SingleFeatureCriterion extends Criterion {
@@ -21,8 +23,8 @@ public abstract class SingleFeatureCriterion extends Criterion {
 	}
 	
 	@Override
-	public int decide(RealVector input) {
-		return decide(input.getEntry(featureIndex));
+	public int decide(Element input) {
+		return decide(((RealVector)input.get(featureIndex)).getEntry(0));
 	}
 
 	public abstract int decide(double feature);

@@ -10,22 +10,21 @@
  ******************************************************************************/
 package game.plugins.algorithms;
 
-import game.core.Block;
 import game.core.Dataset;
+import game.core.DatasetTemplate;
 import game.core.TrainingAlgorithm;
 import game.core.blocks.MetaEnsemble;
+import game.plugins.blocks.classifiers.MajorityCombiner;
+import game.plugins.blocks.pipes.ProbabilityToLabel;
 import game.plugins.classifiers.DecisionTree;
-import game.plugins.classifiers.FeatureSelector;
-import game.plugins.classifiers.MajorityCombiner;
-import game.plugins.encoders.OneHotEncoder;
+import game.plugins.datatemplates.LabelTemplate;
+import game.plugins.trainingalgorithms.TargetLabelDecoder;
 import game.utils.Utils;
 
 import com.ios.ErrorCheck;
-import com.ios.Property;
 import com.ios.errorchecks.RangeCheck;
-import com.ios.listeners.ExactPathListener;
 import com.ios.triggers.MasterSlaveTrigger;
-import com.ios.triggers.SimpleTrigger;
+
 
 public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 	
@@ -35,61 +34,73 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 	
 	public int trees = 10;
 	
-	public FeatureSelector selector;
-	
 	public RandomForest() {
 		addErrorCheck("bootstrapPercent", new RangeCheck(0.01, 1.0));
 		
 		addErrorCheck("featuresPerNode", new ErrorCheck<Integer>() {
 			public RandomForest wrapper = RandomForest.this;
 			@Override public String getError(Integer value) {
-				if (wrapper.block != null && wrapper.block.getParent(0) != null) {
-					if (value > wrapper.block.getParent(0).getFeatureNumber())
-						return "cannot be greater than input feature number (" + block.getParent(0).getFeatureNumber() + ")";
+				if (wrapper.block != null && wrapper.block.getParentTemplate() != null) {
+					if (value > wrapper.block.getParentTemplate().size())
+						return "cannot be greater than input feature number (" + block.getParentTemplate() + ")";
+					if (value < 0)
+						return "cannot be negative";
 				}
 				return null;
 			}
 		});
 		
-		addTrigger(new MasterSlaveTrigger(this, "block.parents.0", "selector.inputEncoder"));
-		
-		addTrigger(new SimpleTrigger(new ExactPathListener(new Property(this, "block"))) {
+		addErrorCheck("block", new ErrorCheck<MetaEnsemble>() {
 			@Override
-			public void action(Property changedPath) {
-				Block block = changedPath.getContent();
-				block.setContent("outputEncoder", new OneHotEncoder());
-				block.setContent("combiner", new MajorityCombiner());
+			public String getError(MetaEnsemble value) {
+				if (value.getParentTemplate() != null) {
+					if (!(new DecisionTree().supportsInputTemplate(value.getParentTemplate())))
+						return "cannot handle " + value.getParentTemplate();
+					else
+						return null;
+				} else {
+					return "invalid parent template (null)";
+				}
 			}
 		});
-	}
-
-	@Override
-	public boolean isCompatible(Block block) {
-		return block instanceof MetaEnsemble;
+		
+		addTrigger(new MasterSlaveTrigger(this, "block.datasetTemplate.targetTemplate", "block.outputTemplate", "block.combiner.outputTemplate"));
 	}
 
 	@Override
 	protected void train(Dataset dataset) {
-		int selectedFeatures = featuresPerNode == 0 ? (int)Utils.log2(block.getParent(0).getFeatureNumber()) + 1 : featuresPerNode;
+		int featuresPerNode = this.featuresPerNode == 0 ? (int)Utils.log2(block.getParentTemplate().size()) + 1 : this.featuresPerNode;
 		
-		updateStatus(0.1, "start growing forest of " + trees + " trees using " + selectedFeatures + " features per node.");
+		block.setContent("combiner", new MajorityCombiner());
+		
+		updateStatus(0.1, "start growing forest of " + trees + " trees using " + featuresPerNode + " features per node.");
 		
 		for(int i = 0; i < trees; i++) {
 			updateStatus(0.1 + 0.9*i/trees, "growing tree " + (i+1));
 			DecisionTree tree = new DecisionTree();
-			tree.setContent("template", block.template);
-			tree.setContent("trainingAlgorithm", new C45Like());
-			tree.parents.add(block.getParent(0));
-			tree.trainingAlgorithm.setContent("featuresPerNode", selectedFeatures);
-			tree.trainingAlgorithm.setContent("selector", selector);
+			tree.setContent("datasetTemplate", block.datasetTemplate);
+			tree.setContent("trainingAlgorithm", new RealFeaturesTree());
+			tree.parents.add(block.getParent());
+			tree.trainingAlgorithm.setContent("featuresPerNode", featuresPerNode);
 			executeAnotherTaskAndWait(0.1+0.9*(i+1)/trees, tree.trainingAlgorithm, dataset.getRandomSubset(bootstrapPercent)); // FIXME Bootstrap sample
-			block.combiner.parents.add(tree);
+			
+			ProbabilityToLabel dec = new ProbabilityToLabel();
+			dec.setContent("datasetTemplate", block.datasetTemplate);
+			dec.setContent("trainingAlgorithm", new TargetLabelDecoder());
+			dec.parents.add(tree);
+			block.combiner.parents.add(dec);
 		}
 	}
 
 	@Override
-	public String getManagedPropertyNames() {
-		return "combiner outputEncoder";
+	protected String getTrainingPropertyNames() {
+		return "combiner";
+	}
+
+	@Override
+	protected boolean isCompatible(DatasetTemplate datasetTemplate) {
+		return datasetTemplate.sequences == false && datasetTemplate.targetTemplate.isSingletonTemplate(LabelTemplate.class);
 	}
 
 }
+

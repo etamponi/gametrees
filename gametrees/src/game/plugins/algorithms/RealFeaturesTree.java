@@ -10,20 +10,18 @@
  ******************************************************************************/
 package game.plugins.algorithms;
 
-import game.core.Block;
-import game.core.Block.FeatureType;
 import game.core.Dataset;
 import game.core.Dataset.SampleIterator;
+import game.core.DatasetTemplate;
+import game.core.Experiment;
 import game.core.Instance;
 import game.core.Sample;
 import game.core.TrainingAlgorithm;
 import game.plugins.classifiers.Criterion;
 import game.plugins.classifiers.DecisionTree;
-import game.plugins.classifiers.FeatureSelector;
 import game.plugins.classifiers.Node;
-import game.plugins.classifiers.criteria.Partition;
 import game.plugins.classifiers.criteria.SingleThreshold;
-import game.plugins.classifiers.selectors.RandomFeatureSelector;
+import game.plugins.datatemplates.LabelTemplate;
 import game.utils.Utils;
 
 import java.util.ArrayList;
@@ -39,7 +37,7 @@ import org.apache.commons.math3.linear.RealVector;
 import com.ios.ErrorCheck;
 import com.ios.triggers.MasterSlaveTrigger;
 
-public class C45Like extends TrainingAlgorithm<DecisionTree> {
+public class RealFeaturesTree extends TrainingAlgorithm<DecisionTree> {
 	
 	public boolean binarySplitNominal = false;
 	
@@ -47,29 +45,24 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	
 	public int minimumSamples = 2;
 	
-	public FeatureSelector selector;
-	
-	public C45Like() {
-		addTrigger(new MasterSlaveTrigger(this, "block.parents.0", "selector.inputEncoder"));
-		
-		setContent("selector", new RandomFeatureSelector());
+	public RealFeaturesTree() {
+		addTrigger(new MasterSlaveTrigger(this, "block.datasetTemplate.targetTemplate.0.labels", "block.outputTemplate.0.dimension") {
+			@Override
+			protected Object transform(Object content) {
+				return ((List)content).size();
+			}
+		});
 		
 		addErrorCheck("featuresPerNode", new ErrorCheck<Integer>() {
-			private C45Like algorithm = C45Like.this;
+			private RealFeaturesTree algorithm = RealFeaturesTree.this;
 			@Override public String getError(Integer value) {
-				if (algorithm.block.getParent(0) != null) {
-					if (value > algorithm.block.getParent(0).getFeatureNumber())
-						return "cannot be greater than input feature number (" + block.getParent(0).getFeatureNumber() + ")";
+				if (algorithm.block.getParentTemplate() != null) {
+					if (value > algorithm.block.getParentTemplate().size())
+						return "cannot be greater than input feature number (" + block.getParentTemplate() + ")";
 				}
 				return null;
 			}
 		});
-	}
-	
-	@Override
-	public boolean isCompatible(Block block) {
-		return block instanceof DecisionTree;
-//				&& block.getContent("template.inputTemplate.sequence", boolean.class) == false;
 	}
 
 	@Override
@@ -130,12 +123,13 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	protected Criterion bestCriterion(Dataset dataset) {
 		CriterionWithGain ret = new CriterionWithGain(null, 0);
 		
-		List<Integer> range = Utils.range(0, block.getParent().getFeatureNumber());
+		List<Integer> featurePositions = Utils.range(0, block.getParentTemplate().size());
+		int totalAttempts = featuresPerNode == 0 ? featurePositions.size() : featuresPerNode;
+		if (featuresPerNode > 0)
+			Collections.shuffle(featurePositions, Experiment.getRandom());
 		
-		List<Integer> possibleFeatures = featuresPerNode == 0 ? range : selector.select(featuresPerNode, dataset);
-		
-		for(int feature: possibleFeatures) {
-			CriterionWithGain current = bestCriterionFor(feature, dataset);
+		for(int i = 0; i < totalAttempts; i++) {
+			CriterionWithGain current = bestCriterionFor(featurePositions.get(i), dataset);
 			if (current.gain > ret.gain)
 				ret = current;
 		}
@@ -159,60 +153,49 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	}
 	
 	protected CriterionWithGain bestCriterionFor(int featureIndex, Dataset dataset) {
-		
-		if (block.getParent(0).getFeatureType(featureIndex) == FeatureType.NOMINAL && binarySplitNominal == false) {
+		CriterionWithGain ret = new CriterionWithGain(null, 0);
 			
-			Partition criterion = new Partition(featureIndex);
-			double gain = gain(split(dataset, criterion));
-			
-			return new CriterionWithGain(criterion, gain);
-			
-		} else {
-			
-			CriterionWithGain ret = new CriterionWithGain(null, 0);
-			
-			List<FeatureValue> values = new ArrayList<>(dataset.size());
-			SampleIterator it = dataset.encodedSampleIterator(block.getParent(), block.outputEncoder, false);
-			while(it.hasNext()) {
-				Sample sample = it.next();
-				values.add(new FeatureValue(sample.getEncodedInput().getEntry(featureIndex), (String)sample.getOutput()));
-			}
-			Collections.sort(values);
-			
-			Map<String, Double> lesserCount = new HashMap<>();
-			Map<String, Double> greaterCount = countPerLabel(values);
-			double information = information(greaterCount);
-			double threshold = Double.NaN;
-			
-			FeatureValue prev = values.get(0);
-			int count = 1;
-			for(int i = 1; i < values.size(); i++) {
-				FeatureValue curr = values.get(i);
-				if (!lesserCount.containsKey(prev.label))
-					lesserCount.put(prev.label, 0.0);
-				if (!prev.label.equals(curr.label)) {
-					lesserCount.put(prev.label, lesserCount.get(prev.label)+count);
-					greaterCount.put(prev.label, greaterCount.get(prev.label)-count);
-					count = 1;
-					if (prev.value < curr.value) {
-						double gain = information + gain(lesserCount, greaterCount);
-						if (gain > ret.gain) {
-							threshold = (prev.value + curr.value)/2;
-							ret.gain = gain;
-						}
-					}
-				} else {
-					count++;
-				}
-				prev = curr;
-			}
-			
-			if (!Double.isNaN(threshold)) {
-				SingleThreshold c = new SingleThreshold(featureIndex, threshold);
-				ret.criterion = c;
-			}
-			return ret;
+		List<FeatureValue> values = new ArrayList<>(dataset.size());
+		SampleIterator it = dataset.sampleIterator(block.getParent(), null);
+		while(it.hasNext()) {
+			Sample sample = it.next();
+			values.add(new FeatureValue(((RealVector)sample.getSource().get(featureIndex)).getEntry(0), (String)sample.getTarget().get(0)));
 		}
+		Collections.sort(values);
+		
+		Map<String, Double> lesserCount = new HashMap<>();
+		Map<String, Double> greaterCount = countPerLabel(values);
+		double information = information(greaterCount);
+		double threshold = Double.NaN;
+		
+		FeatureValue prev = values.get(0);
+		int count = 1;
+		for(int i = 1; i < values.size(); i++) {
+			FeatureValue curr = values.get(i);
+			if (!lesserCount.containsKey(prev.label))
+				lesserCount.put(prev.label, 0.0);
+			if (!prev.label.equals(curr.label)) {
+				lesserCount.put(prev.label, lesserCount.get(prev.label)+count);
+				greaterCount.put(prev.label, greaterCount.get(prev.label)-count);
+				count = 1;
+				if (prev.value < curr.value) {
+					double gain = information + gain(lesserCount, greaterCount);
+					if (gain > ret.gain) {
+						threshold = (prev.value + curr.value)/2;
+						ret.gain = gain;
+					}
+				}
+			} else {
+				count++;
+			}
+			prev = curr;
+		}
+		
+		if (!Double.isNaN(threshold)) {
+			SingleThreshold c = new SingleThreshold(featureIndex, threshold);
+			ret.criterion = c;
+		}
+		return ret;
 	}
 	
 	private Map<String, Double> countPerLabel(List<FeatureValue> values) {
@@ -282,13 +265,13 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 
 	protected List<Dataset> split(Dataset dataset, Criterion criterion) {
 		List<Dataset> splits = new ArrayList<>();
-		splits.add(new Dataset(block.template));
-		splits.add(new Dataset(block.template));
+		splits.add(new Dataset(block.datasetTemplate));
+		splits.add(new Dataset(block.datasetTemplate));
 		
 		Iterator<Instance> it = dataset.iterator();
 		while(it.hasNext()) {
 			Instance instance = it.next();
-			int split = criterion.decide(block.getParent().transform(instance.getInput()).getElement(0));
+			int split = criterion.decide(block.getParent().transform(instance.getSource()).get(0));
 			splits.get(split).add(instance);
 		}
 		
@@ -301,14 +284,14 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 		double sum = 0;
 		while(it.hasNext()) {
 			Instance i = it.next();
-			String key = i.getOutput().get(0).toString();
+			String key = (String) i.getTarget().get(0).get(0);
 			if (!prob.containsKey(key))
 				prob.put(key, 0.0);
 			prob.put(key, prob.get(key)+1.0);
 			sum++;
 		}
 		
-		List<String> labels = block.template.outputTemplate.getContent("labels");
+		List<String> labels = dataset.getTemplate().targetTemplate.getSingleton().getContent("labels");
 		
 		RealVector ret = new ArrayRealVector(labels.size());
 		for(String key: prob.keySet()) {
@@ -319,8 +302,13 @@ public class C45Like extends TrainingAlgorithm<DecisionTree> {
 	}
 
 	@Override
-	protected String getManagedPropertyNames() {
+	protected String getTrainingPropertyNames() {
 		return "root";
+	}
+
+	@Override
+	protected boolean isCompatible(DatasetTemplate datasetTemplate) {
+		return datasetTemplate.sequences == false && datasetTemplate.targetTemplate.isSingletonTemplate(LabelTemplate.class);
 	}
 
 }

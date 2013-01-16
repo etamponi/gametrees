@@ -10,6 +10,8 @@
  ******************************************************************************/
 package game.plugins.classifiers;
 
+import game.core.Element;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,7 +25,7 @@ public class Node {
 	
 	private final List<Node> children = new ArrayList<>();
 	
-	public RealVector decide(RealVector input) {
+	public RealVector decide(Element input) {
 		if (children.isEmpty())
 			return probability;
 		else

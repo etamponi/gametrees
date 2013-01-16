@@ -1,9 +1,9 @@
 package game.plugins.classifiers;
 
-import org.apache.commons.math3.linear.RealVector;
+import game.core.Element;
 
 public abstract class Criterion {
 	
-	public abstract int decide(RealVector input);
+	public abstract int decide(Element input);
 
 }

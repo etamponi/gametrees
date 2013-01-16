@@ -10,41 +10,40 @@
  ******************************************************************************/
 package game.plugins.classifiers;
 
-import game.core.Encoding;
-import game.core.InstanceTemplate;
+import game.core.Data;
+import game.core.Element;
+import game.core.ElementTemplate;
+import game.core.ValueTemplate;
 import game.core.blocks.Classifier;
-import game.plugins.datatemplates.LabelTemplate;
-import game.plugins.encoders.OneHotEncoder;
-
-import com.ios.triggers.BoundProperties;
+import game.plugins.datatemplates.VectorTemplate;
 
 public class DecisionTree extends Classifier {
 	
 	public Node root;
-	
-	public DecisionTree() {
-		setContent("outputEncoder", new OneHotEncoder());
-		addTrigger(new BoundProperties(this, "outputEncoder"));
-	}
 
 	@Override
-	public boolean isCompatible(InstanceTemplate template) {
-		return template.outputTemplate instanceof LabelTemplate;
-	}
-
-	@Override
-	protected Encoding classify(Encoding inputEncoded) {
-		Encoding ret = new Encoding(getFeatureNumber(), inputEncoded.length());
-		
-		for(int j = 0; j < inputEncoded.length(); j++)
-			ret.setElement(j, root.decide(inputEncoded.getElement(j)));
-		
+	protected Data transduce(Data input) {
+		Data ret = new Data();
+		for(Element i: input) {
+			ret.add(new Element(root.decide(i)));
+		}
 		return ret;
 	}
 
 	@Override
-	public FeatureType getFeatureType(int featureIndex) {
-		return FeatureType.NUMERIC;
+	public boolean supportsInputTemplate(ElementTemplate inputTemplate) {
+		if (inputTemplate.isEmpty())
+			return false;
+		for (ValueTemplate tpl: inputTemplate) {
+			if (!(tpl instanceof VectorTemplate) || tpl.getContent("dimension", int.class) != 1)
+				return false;
+		}
+		return true;
+	}
+
+	@Override
+	protected void setup() {
+		// Nothing to do
 	}
 
 }
