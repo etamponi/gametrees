@@ -22,7 +22,7 @@ public class DecisionTree extends Classifier {
 	public Node root;
 
 	@Override
-	protected Data transduce(Data input) {
+	protected Data classify(Data input) {
 		Data ret = new Data();
 		for(Element i: input) {
 			ret.add(new Element(root.decide(i)));
