@@ -21,7 +21,7 @@ import game.plugins.classifiers.Criterion;
 import game.plugins.classifiers.DecisionTree;
 import game.plugins.classifiers.Node;
 import game.plugins.classifiers.criteria.SingleThreshold;
-import game.plugins.datatemplates.LabelTemplate;
+import game.plugins.valuetemplates.LabelTemplate;
 import game.utils.Utils;
 
 import java.util.ArrayList;

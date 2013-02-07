@@ -15,7 +15,7 @@ import game.core.Element;
 import game.core.ElementTemplate;
 import game.core.ValueTemplate;
 import game.core.blocks.Classifier;
-import game.plugins.datatemplates.VectorTemplate;
+import game.plugins.valuetemplates.VectorTemplate;
 
 public class DecisionTree extends Classifier {
 	

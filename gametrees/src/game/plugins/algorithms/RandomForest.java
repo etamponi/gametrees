@@ -17,8 +17,8 @@ import game.core.blocks.MetaEnsemble;
 import game.plugins.blocks.classifiers.MajorityCombiner;
 import game.plugins.blocks.pipes.ProbabilityToLabel;
 import game.plugins.classifiers.DecisionTree;
-import game.plugins.datatemplates.LabelTemplate;
 import game.plugins.trainingalgorithms.TargetLabelDecoder;
+import game.plugins.valuetemplates.LabelTemplate;
 import game.utils.Utils;
 
 import com.ios.ErrorCheck;
