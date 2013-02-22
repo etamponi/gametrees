@@ -13,11 +13,8 @@ package game.plugins.algorithms;
 import game.core.Dataset;
 import game.core.DatasetTemplate;
 import game.core.TrainingAlgorithm;
-import game.core.blocks.MetaEnsemble;
-import game.plugins.blocks.classifiers.MajorityCombiner;
-import game.plugins.blocks.pipes.ProbabilityToLabel;
+import game.plugins.blocks.decoders.ProbabilityDecoder;
 import game.plugins.classifiers.DecisionTree;
-import game.plugins.trainingalgorithms.TargetLabelDecoder;
 import game.plugins.valuetemplates.LabelTemplate;
 import game.utils.Utils;
 
@@ -84,7 +81,7 @@ public class RandomForest extends TrainingAlgorithm<MetaEnsemble> {
 			tree.trainingAlgorithm.setContent("featuresPerNode", featuresPerNode);
 			executeAnotherTaskAndWait(0.1+0.9*(i+1)/trees, tree.trainingAlgorithm, dataset.getRandomSubset(bootstrapPercent)); // FIXME Bootstrap sample
 			
-			ProbabilityToLabel dec = new ProbabilityToLabel();
+			ProbabilityDecoder dec = new ProbabilityDecoder();
 			dec.setContent("datasetTemplate", block.datasetTemplate);
 			dec.setContent("trainingAlgorithm", new TargetLabelDecoder());
 			dec.parents.add(tree);

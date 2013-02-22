@@ -16,12 +16,14 @@ import game.core.DatasetTemplate;
 import game.core.Experiment;
 import game.core.Instance;
 import game.core.Sample;
-import game.core.TrainingAlgorithm;
+import game.core.ValueTemplate;
+import game.core.trainingalgorithms.StandardClassifierTraining;
 import game.plugins.classifiers.Criterion;
 import game.plugins.classifiers.DecisionTree;
 import game.plugins.classifiers.Node;
 import game.plugins.classifiers.criteria.SingleThreshold;
 import game.plugins.valuetemplates.LabelTemplate;
+import game.plugins.valuetemplates.VectorTemplate;
 import game.utils.Utils;
 
 import java.util.ArrayList;
@@ -34,10 +36,7 @@ import java.util.Map;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
 
-import com.ios.ErrorCheck;
-import com.ios.triggers.MasterSlaveTrigger;
-
-public class RealFeaturesTree extends TrainingAlgorithm<DecisionTree> {
+public class RealFeaturesTree extends StandardClassifierTraining<DecisionTree> {
 	
 	public boolean binarySplitNominal = false;
 	
@@ -46,23 +45,7 @@ public class RealFeaturesTree extends TrainingAlgorithm<DecisionTree> {
 	public int minimumSamples = 2;
 	
 	public RealFeaturesTree() {
-		addTrigger(new MasterSlaveTrigger(this, "block.datasetTemplate.targetTemplate.0.labels", "block.outputTemplate.0.dimension") {
-			@Override
-			protected Object transform(Object content) {
-				return ((List)content).size();
-			}
-		});
-		
-		addErrorCheck("featuresPerNode", new ErrorCheck<Integer>() {
-			private RealFeaturesTree algorithm = RealFeaturesTree.this;
-			@Override public String getError(Integer value) {
-				if (algorithm.block.getParentTemplate() != null) {
-					if (value > algorithm.block.getParentTemplate().size())
-						return "cannot be greater than input feature number (" + block.getParentTemplate() + ")";
-				}
-				return null;
-			}
-		});
+		// TODO Error check for featuresPerNode
 	}
 
 	@Override
@@ -123,7 +106,7 @@ public class RealFeaturesTree extends TrainingAlgorithm<DecisionTree> {
 	protected Criterion bestCriterion(Dataset dataset) {
 		CriterionWithGain ret = new CriterionWithGain(null, 0);
 		
-		List<Integer> featurePositions = Utils.range(0, block.getParentTemplate().size());
+		List<Integer> featurePositions = Utils.range(0, block.datasetTemplate.sourceTemplate.size());
 		int totalAttempts = featuresPerNode == 0 ? featurePositions.size() : featuresPerNode;
 		if (featuresPerNode > 0)
 			Collections.shuffle(featurePositions, Experiment.getRandom());
@@ -156,7 +139,7 @@ public class RealFeaturesTree extends TrainingAlgorithm<DecisionTree> {
 		CriterionWithGain ret = new CriterionWithGain(null, 0);
 			
 		List<FeatureValue> values = new ArrayList<>(dataset.size());
-		SampleIterator it = dataset.sampleIterator(block.getParent(), null);
+		SampleIterator it = dataset.sampleIterator();
 		while(it.hasNext()) {
 			Sample sample = it.next();
 			values.add(new FeatureValue(((RealVector)sample.getSource().get(featureIndex)).getEntry(0), (String)sample.getTarget().get(0)));
@@ -271,7 +254,7 @@ public class RealFeaturesTree extends TrainingAlgorithm<DecisionTree> {
 		Iterator<Instance> it = dataset.iterator();
 		while(it.hasNext()) {
 			Instance instance = it.next();
-			int split = criterion.decide(block.getParent().transform(instance.getSource()).get(0));
+			int split = criterion.decide(instance.getSource().get(0));
 			splits.get(split).add(instance);
 		}
 		
@@ -307,8 +290,17 @@ public class RealFeaturesTree extends TrainingAlgorithm<DecisionTree> {
 	}
 
 	@Override
-	protected boolean isCompatible(DatasetTemplate datasetTemplate) {
-		return datasetTemplate.sequences == false && datasetTemplate.targetTemplate.isSingletonTemplate(LabelTemplate.class);
+	protected boolean isCompatible(DatasetTemplate template) {
+		if (template.sequences != false || !template.targetTemplate.isSingletonTemplate(LabelTemplate.class))
+			return false;
+		if (template.sourceTemplate.isEmpty())
+			return false;
+		for (ValueTemplate tpl: template.sourceTemplate) {
+			if (!(tpl instanceof VectorTemplate) || tpl.getContent("dimension", int.class) != 1)
+				return false;
+		}
+		
+		return true;
 	}
 
 }

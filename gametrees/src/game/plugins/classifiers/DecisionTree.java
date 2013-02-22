@@ -11,18 +11,16 @@
 package game.plugins.classifiers;
 
 import game.core.Data;
+import game.core.DatasetTemplate;
 import game.core.Element;
-import game.core.ElementTemplate;
-import game.core.ValueTemplate;
 import game.core.blocks.Classifier;
-import game.plugins.valuetemplates.VectorTemplate;
 
 public class DecisionTree extends Classifier {
 	
 	public Node root;
 
 	@Override
-	protected Data classify(Data input) {
+	public Data classify(Data input) {
 		Data ret = new Data();
 		for(Element i: input) {
 			ret.add(new Element(root.decide(i)));
@@ -31,18 +29,12 @@ public class DecisionTree extends Classifier {
 	}
 
 	@Override
-	public boolean supportsInputTemplate(ElementTemplate inputTemplate) {
-		if (inputTemplate.isEmpty())
-			return false;
-		for (ValueTemplate tpl: inputTemplate) {
-			if (!(tpl instanceof VectorTemplate) || tpl.getContent("dimension", int.class) != 1)
-				return false;
-		}
+	public boolean isClassifierCompatible(DatasetTemplate template) {
 		return true;
 	}
 
 	@Override
-	protected void setup() {
+	protected void updateOutputTemplate() {
 		// Nothing to do
 	}
 
