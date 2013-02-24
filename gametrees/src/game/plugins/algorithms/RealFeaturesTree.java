@@ -142,7 +142,9 @@ public class RealFeaturesTree extends StandardClassifierTraining<DecisionTree> {
 		SampleIterator it = dataset.sampleIterator();
 		while(it.hasNext()) {
 			Sample sample = it.next();
-			values.add(new FeatureValue(((RealVector)sample.getSource().get(featureIndex)).getEntry(0), (String)sample.getTarget().get(0)));
+			values.add(new FeatureValue(
+					sample.getSource().get(featureIndex, RealVector.class).getEntry(0), 
+					sample.getTarget().get(0, String.class)));
 		}
 		Collections.sort(values);
 		

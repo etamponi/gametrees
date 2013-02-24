@@ -24,7 +24,7 @@ public abstract class SingleFeatureCriterion extends Criterion {
 	
 	@Override
 	public int decide(Element input) {
-		return decide(((RealVector)input.get(featureIndex)).getEntry(0));
+		return decide(input.get(featureIndex, RealVector.class).getEntry(0));
 	}
 
 	public abstract int decide(double feature);
