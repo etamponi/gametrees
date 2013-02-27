@@ -13,7 +13,7 @@ package game.plugins.algorithms;
 import game.core.Dataset;
 import game.core.DatasetTemplate;
 import game.core.blocks.Ensemble;
-import game.core.trainingalgorithms.StandardClassifierTraining;
+import game.core.trainingalgorithms.ClassifierTrainingAlgorithm;
 import game.plugins.blocks.combinationstrategies.Majority;
 import game.plugins.blocks.decoders.ProbabilityDecoder;
 import game.plugins.classifiers.DecisionTree;
@@ -22,7 +22,7 @@ import game.utils.Utils;
 import com.ios.errorchecks.RangeCheck;
 
 
-public class RandomForest extends StandardClassifierTraining<Ensemble> {
+public class RandomForest extends ClassifierTrainingAlgorithm<Ensemble> {
 	
 	public double bootstrapPercent = 0.66;
 	

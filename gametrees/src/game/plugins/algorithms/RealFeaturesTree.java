@@ -17,7 +17,7 @@ import game.core.Experiment;
 import game.core.Instance;
 import game.core.Sample;
 import game.core.ValueTemplate;
-import game.core.trainingalgorithms.StandardClassifierTraining;
+import game.core.trainingalgorithms.ClassifierTrainingAlgorithm;
 import game.plugins.classifiers.Criterion;
 import game.plugins.classifiers.DecisionTree;
 import game.plugins.classifiers.Node;
@@ -36,7 +36,7 @@ import java.util.Map;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
 
-public class RealFeaturesTree extends StandardClassifierTraining<DecisionTree> {
+public class RealFeaturesTree extends ClassifierTrainingAlgorithm<DecisionTree> {
 	
 	public boolean binarySplitNominal = false;
 	
