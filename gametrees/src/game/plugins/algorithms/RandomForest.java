@@ -31,7 +31,7 @@ public class RandomForest extends ClassifierTrainingAlgorithm<Ensemble> {
 	public int trees = 10;
 	
 	public RandomForest() {
-		addErrorCheck("bootstrapPercent", new RangeCheck(0.01, 1.0));
+		addErrorCheck(new RangeCheck("bootstrapPercent", 0.01, 1.0));
 	}
 
 	@Override
@@ -60,8 +60,8 @@ public class RandomForest extends ClassifierTrainingAlgorithm<Ensemble> {
 	}
 
 	@Override
-	protected boolean isCompatible(DatasetTemplate datasetTemplate) {
-		return new RealFeaturesTree().isCompatible(datasetTemplate);
+	protected String compatibilityError(DatasetTemplate datasetTemplate) {
+		return new RealFeaturesTree().compatibilityError(datasetTemplate);
 	}
 
 }

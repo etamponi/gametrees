@@ -22,7 +22,6 @@ import game.plugins.classifiers.Criterion;
 import game.plugins.classifiers.DecisionTree;
 import game.plugins.classifiers.Node;
 import game.plugins.classifiers.criteria.SingleThreshold;
-import game.plugins.valuetemplates.LabelTemplate;
 import game.plugins.valuetemplates.VectorTemplate;
 import game.utils.Utils;
 
@@ -144,7 +143,7 @@ public class RealFeaturesTree extends ClassifierTrainingAlgorithm<DecisionTree> 
 			Sample sample = it.next();
 			values.add(new FeatureValue(
 					sample.getSource().get(featureIndex, RealVector.class).getEntry(0), 
-					sample.getTarget().get(0, String.class)));
+					sample.getTarget().get(String.class)));
 		}
 		Collections.sort(values);
 		
@@ -208,8 +207,8 @@ public class RealFeaturesTree extends ClassifierTrainingAlgorithm<DecisionTree> 
 		double info = 0;
 		for (double p: prob)
 			if (p > 0)
-				info += p * Math.log(p);
-		return -info;
+				info -= p * Utils.log2(p);
+		return info;
 	}
 
 	private double[] getProbabilities(Map<String, Double> map) {
@@ -233,8 +232,8 @@ public class RealFeaturesTree extends ClassifierTrainingAlgorithm<DecisionTree> 
 		double info = 0;
 		for (double p: prob.toArray())
 			if (p > 0)
-				info += p * Math.log(p);
-		return -info;
+				info -= p * Utils.log2(p);
+		return info;
 	}
 	
 	protected double gain(List<Dataset> splits) {
@@ -256,7 +255,7 @@ public class RealFeaturesTree extends ClassifierTrainingAlgorithm<DecisionTree> 
 		Iterator<Instance> it = dataset.iterator();
 		while(it.hasNext()) {
 			Instance instance = it.next();
-			int split = criterion.decide(instance.getSource().get(0));
+			int split = criterion.decide(instance.getSource().get());
 			splits.get(split).add(instance);
 		}
 		
@@ -269,7 +268,7 @@ public class RealFeaturesTree extends ClassifierTrainingAlgorithm<DecisionTree> 
 		double sum = 0;
 		while(it.hasNext()) {
 			Instance i = it.next();
-			String key = (String) i.getTarget().get(0).get(0);
+			String key = i.getTarget().get().get(String.class);
 			if (!prob.containsKey(key))
 				prob.put(key, 0.0);
 			prob.put(key, prob.get(key)+1.0);
@@ -282,7 +281,6 @@ public class RealFeaturesTree extends ClassifierTrainingAlgorithm<DecisionTree> 
 		for(String key: prob.keySet()) {
 			ret.setEntry(labels.indexOf(key), prob.get(key)/sum);
 		}
-
 		return ret;
 	}
 
@@ -292,17 +290,14 @@ public class RealFeaturesTree extends ClassifierTrainingAlgorithm<DecisionTree> 
 	}
 
 	@Override
-	protected boolean isCompatible(DatasetTemplate template) {
-		if (template.sequences != false || !template.targetTemplate.isSingletonTemplate(LabelTemplate.class))
-			return false;
-		if (template.sourceTemplate.isEmpty())
-			return false;
+	protected String compatibilityError(DatasetTemplate template) {
+		if (template.sequences != false)
+			return "sequences not supported";
 		for (ValueTemplate tpl: template.sourceTemplate) {
 			if (!(tpl instanceof VectorTemplate) || tpl.getContent("dimension", int.class) != 1)
-				return false;
+				return "sourceTemplate must be made of VectorTemplates with dimension = 1";
 		}
-		
-		return true;
+		return null;
 	}
 
 }

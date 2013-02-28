@@ -29,8 +29,8 @@ public class DecisionTree extends Classifier {
 	}
 
 	@Override
-	public boolean isClassifierCompatible(DatasetTemplate template) {
-		return true;
+	public String classifierCompatibilityError(DatasetTemplate template) {
+		return null;
 	}
 
 	@Override
